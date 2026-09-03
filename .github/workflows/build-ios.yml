@@ -55,12 +55,14 @@ jobs:
 
       - name: Créer le Profil de Distribution App Store avec Fastlane Sigh
         env:
+          SPACESHIP_CONNECT_API_IN_HOUSE: "false"
           APP_STORE_CONNECT_API_KEY: |
             {
               "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
               "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
               "key": "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}",
-              "is_key_content_base64": true
+              "is_key_content_base64": true,
+              "in_house": false
             }
         run: |
           cd mobile/ios
@@ -70,12 +72,14 @@ jobs:
 
       - name: Compilation et Génération de l'IPA avec Fastlane Gym
         env:
+          SPACESHIP_CONNECT_API_IN_HOUSE: "false"
           APP_STORE_CONNECT_API_KEY: |
             {
               "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
               "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
               "key": "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}",
-              "is_key_content_base64": true
+              "is_key_content_base64": true,
+              "in_house": false
             }
         run: |
           cd mobile/ios
