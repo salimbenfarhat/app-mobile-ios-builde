@@ -1,17 +1,17 @@
 name: Build iOS IPA
 
 on:
-  workflow_dispatch: # Permet de lancer le build manuellement d'un clic
+  workflow_dispatch:
 
 jobs:
   build-ios:
-    runs-on: macos-14 # Runner macOS M1/M2 gratuit et illimité sur dépôt public
+    runs-on: macos-14
 
     steps:
       - name: Checkout du code privé
         uses: actions/checkout@v4
         with:
-          repository: VOTRE_PSEUDO_GITHUB/VOTRE_REPO_PRIVE # ⚠️ Remplacez par votre repo privé (ex: org/app_mobile)
+          repository: salimbenfarhat/nsmobile-delivery-app
           token: ${{ secrets.PAT_PRIVATE_REPO }}
           ref: main
 
@@ -35,14 +35,12 @@ jobs:
           mkdir -p ~/.appstoreconnect/private_keys
           echo "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
 
-      - name: Expo Prebuild (Génération du projet native iOS)
+      - name: Expo Prebuild (Génération du projet iOS)
         run: |
           cd mobile
           npx expo prebuild --platform ios
 
       - name: Build de l'IPA (Compilation locale sur le runner macOS)
-        env:
-          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.EXPO_APPLE_APP_SPECIFIC_PASSWORD }}
         run: |
           cd mobile
           eas build --platform ios --local --non-interactive --output=./app-release.ipa
@@ -52,4 +50,4 @@ jobs:
         with:
           name: app-release-ios
           path: mobile/app-release.ipa
-          retention-days: 1 # Conserve le fichier 1 jour pour des raisons de sécurité
+          retention-days: 1
