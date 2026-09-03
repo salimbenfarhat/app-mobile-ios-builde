@@ -40,6 +40,13 @@ jobs:
           cd mobile
           npx expo prebuild --platform ios
 
+      - name: Initialiser le projet EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          cd mobile
+          eas init --non-interactive || true
+
       - name: Build de l'IPA (Compilation locale sur le runner macOS)
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
