@@ -53,56 +53,81 @@ jobs:
           cd mobile
           npx expo prebuild --platform ios
 
+      - name: Configurer la signature Distribution dans le projet Xcode
+        run: |
+          node -e '
+            const fs = require("fs");
+            const file = "mobile/ios/NSMobile.xcodeproj/project.pbxproj";
+            let c = fs.readFileSync(file, "utf8");
+            c = c.replace(/CODE_SIGN_IDENTITY = "iPhone Developer";/g, "CODE_SIGN_IDENTITY = \"Apple Distribution\";");
+            c = c.replace(/CODE_SIGN_IDENTITY = "Apple Development";/g, "CODE_SIGN_IDENTITY = \"Apple Distribution\";");
+            c = c.replace(/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "iPhone Developer";/g, "\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\" = \"Apple Distribution\";");
+            c = c.replace(/CODE_SIGN_STYLE = Automatic;/g, "CODE_SIGN_STYLE = Manual;");
+            c = c.replace(/PROVISIONING_PROFILE_SPECIFIER = "";/g, "PROVISIONING_PROFILE_SPECIFIER = \"com.nsmobile.app AppStore\";");
+            fs.writeFileSync(file, c);
+          '
+
       - name: Install CocoaPods
         run: |
           cd mobile/ios
           pod install
 
-      - name: Compilation et Archivage avec Xcode
+      - name: Créer le Certificat de Distribution avec Fastlane Cert
+        env:
+          SPACESHIP_CONNECT_API_IN_HOUSE: "false"
+          APP_STORE_CONNECT_API_KEY: |
+            {
+              "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
+              "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
+              "key": "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}",
+              "is_key_content_base64": true,
+              "in_house": false
+            }
         run: |
           cd mobile/ios
-          xcodebuild -workspace NSMobile.xcworkspace \
-            -scheme NSMobile \
-            -destination 'generic/platform=iOS' \
-            -configuration Release \
-            -archivePath ./build/NSMobile.xcarchive \
-            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
-            archive \
-            -allowProvisioningUpdates \
-            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
-            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          fastlane cert \
+            --team_id ${{ secrets.APPLE_TEAM_ID }}
 
-      - name: Exportation du fichier IPA
+      - name: Créer le Profil de Distribution App Store avec Fastlane Sigh
+        env:
+          SPACESHIP_CONNECT_API_IN_HOUSE: "false"
+          APP_STORE_CONNECT_API_KEY: |
+            {
+              "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
+              "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
+              "key": "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}",
+              "is_key_content_base64": true,
+              "in_house": false
+            }
         run: |
           cd mobile/ios
-          cat <<EOF > ExportOptions.plist
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>app-store</string>
-              <key>signingStyle</key>
-              <string>automatic</string>
-              <key>teamID</key>
-              <string>${{ secrets.APPLE_TEAM_ID }}</string>
-          </dict>
-          </plist>
-          EOF
+          fastlane sigh \
+            --app_identifier "com.nsmobile.app" \
+            --team_id ${{ secrets.APPLE_TEAM_ID }}
 
-          xcodebuild -exportArchive \
-            -archivePath ./build/NSMobile.xcarchive \
-            -exportPath ./build/output \
-            -exportOptionsPlist ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
-            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+      - name: Compilation et Génération de l'IPA avec Fastlane Gym
+        env:
+          SPACESHIP_CONNECT_API_IN_HOUSE: "false"
+          APP_STORE_CONNECT_API_KEY: |
+            {
+              "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
+              "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
+              "key": "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}",
+              "is_key_content_base64": true,
+              "in_house": false
+            }
+        run: |
+          cd mobile/ios
+          fastlane gym \
+            --workspace NSMobile.xcworkspace \
+            --scheme NSMobile \
+            --export_method app-store \
+            --output_directory ./build/output \
+            --output_name app-release.ipa
 
       - name: Sauvegarder le fichier IPA dans les Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: app-release-ios
-          path: mobile/ios/build/output/*.ipa
+          path: mobile/ios/build/output/app-release.ipa
           retention-days: 1
