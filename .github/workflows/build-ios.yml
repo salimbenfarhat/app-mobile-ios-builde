@@ -58,7 +58,7 @@ jobs:
           cd mobile/ios
           pod install
 
-      - name: Compilation et Archivage avec Xcode (Direct)
+      - name: Compilation et Archivage avec Xcode
         run: |
           cd mobile/ios
           xcodebuild -workspace NSMobile.xcworkspace \
@@ -66,13 +66,16 @@ jobs:
             -destination 'generic/platform=iOS' \
             -configuration Release \
             -archivePath ./build/NSMobile.xcarchive \
+            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+            CODE_SIGN_STYLE="Automatic" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             archive \
             -allowProvisioningUpdates \
             -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
             -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
             -authenticationKeyPath /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
 
-      - name: Exportation du fichier IPA
+      - name: Exportation du fichier IPA avec Xcode
         run: |
           cd mobile/ios
           cat <<EOF > ExportOptions.plist
