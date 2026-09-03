@@ -41,6 +41,11 @@ jobs:
           npx expo prebuild --platform ios
 
       - name: Build de l'IPA (Compilation locale sur le runner macOS)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          EXPO_ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          EXPO_ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}
         run: |
           cd mobile
           eas build --platform ios --local --non-interactive --output=./app-release.ipa
