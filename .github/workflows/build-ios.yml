@@ -53,11 +53,6 @@ jobs:
           cd mobile
           npx expo prebuild --platform ios
 
-      - name: Configurer la signature Distribution dans Xcode
-        run: |
-          sed -i '' 's/iPhone Developer/Apple Distribution/g' mobile/ios/NSMobile.xcodeproj/project.pbxproj || true
-          sed -i '' 's/Apple Development/Apple Distribution/g' mobile/ios/NSMobile.xcodeproj/project.pbxproj || true
-
       - name: Install CocoaPods
         run: |
           cd mobile/ios
@@ -71,6 +66,7 @@ jobs:
             -destination 'generic/platform=iOS' \
             -configuration Release \
             -archivePath ./build/NSMobile.xcarchive \
+            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
             archive \
             -allowProvisioningUpdates \
             -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
