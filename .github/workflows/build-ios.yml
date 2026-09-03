@@ -87,24 +87,23 @@ jobs:
       - name: Export IPA
         working-directory: ${{ env.MOBILE_DIR }}/ios
         run: |
-          cat > ExportOptions.plist <<'PLISTEOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>signingStyle</key>
-            <string>automatic</string>
-            <key>teamID</key>
-            <string>TEAM_ID_PLACEHOLDER</string>
-            <key>compileBitcode</key>
-            <false/>
-          </dict>
-          </plist>
-          PLISTEOF
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+            '<plist version="1.0">' \
+            '<dict>' \
+            '<key>method</key>' \
+            '<string>app-store</string>' \
+            '<key>signingStyle</key>' \
+            '<string>automatic</string>' \
+            '<key>teamID</key>' \
+            '<string>'"${{ secrets.APPLE_TEAM_ID }}"'</string>' \
+            '<key>compileBitcode</key>' \
+            '<false/>' \
+            '</dict>' \
+            '</plist>' > ExportOptions.plist
 
-          sed -i '' "s/TEAM_ID_PLACEHOLDER/${{ secrets.APPLE_TEAM_ID }}/g" ExportOptions.plist
+          cat ExportOptions.plist
 
           xcodebuild -exportArchive \
             -archivePath ./build/Archive.xcarchive \
