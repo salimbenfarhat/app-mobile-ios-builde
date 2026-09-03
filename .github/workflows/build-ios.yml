@@ -1,93 +1,116 @@
-name: Build iOS App (.ipa)
+name: Build iOS IPA
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch: # Permet de lancer le build manuellement depuis GitHub
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  # Repo React Native privé à builder
+  RN_REPO: https://salimbenfarhat:${{ secrets.PAT_PRIVATE_REPO }}@github.com/salimbenfarhat/nsmobile-delivery-app.git
+  # Dossier du projet mobile dans le repo cloné
+  MOBILE_DIR: nsmobile-delivery-app/mobile
 
 jobs:
   build-ios:
-    runs-on: macos-14 # Runner macOS rapide
+    runs-on: macos-14
     steps:
-      # 1. Récupérer le code du dépôt
-      - name: Checkout repository
+      - name: Checkout workflow repo
         uses: actions/checkout@v4
 
-      # 2. Configurer Node.js
+      - name: Clone private React Native repo
+        run: git clone --depth 1 "$RN_REPO"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          cache-dependency-path: mobile/package-lock.json
+          cache: npm
+          cache-dependency-path: ${{ env.MOBILE_DIR }}/package-lock.json
 
-      # 3. Installer les dépendances NPM du dossier mobile
-      - name: Install Mobile Dependencies
+      - name: Install npm dependencies
+        working-directory: ${{ env.MOBILE_DIR }}
+        run: npm ci || npm install
+
+      - name: Generate iOS project with Expo Prebuild
+        working-directory: ${{ env.MOBILE_DIR }}
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Detect Xcode workspace & scheme
+        id: detect
+        working-directory: ${{ env.MOBILE_DIR }}/ios
         run: |
-          cd mobile
-          npm ci
+          WORKSPACE=$(ls -d *.xcworkspace 2>/dev/null | head -1)
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" 2>/dev/null \
+            | sed -n '/Schemes:/,/Buildable/p' | sed -n '2p' | xargs)
 
-      # 4. Installer les CocoaPods iOS
+          if [ -z "$WORKSPACE" ] || [ -z "$SCHEME" ]; then
+            echo "::error::Workspace ou scheme introuvable dans $PWD"
+            exit 1
+          fi
+
+          echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+          echo "Found workspace: $WORKSPACE, scheme: $SCHEME"
+
       - name: Install CocoaPods
-        run: |
-          cd mobile/ios
-          pod install
+        working-directory: ${{ env.MOBILE_DIR }}/ios
+        run: pod install
 
-      # 5. Configurer la clé privée App Store Connect API
       - name: Setup App Store Connect API Key
         run: |
-          mkdir -p /Users/runner/.appstoreconnect/private_keys
-          echo "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_KEY_ID }}.p8
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          echo "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}" | base64 --decode \
+            > "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
 
-      # 6. Créer l'archive Xcode (.xcarchive)
       - name: Xcode Archive
+        working-directory: ${{ env.MOBILE_DIR }}/ios
         run: |
-          cd mobile/ios
-          xcodebuild -workspace NSMobile.xcworkspace \
-            -scheme NSMobile \
+          xcodebuild -workspace "${{ steps.detect.outputs.workspace }}" \
+            -scheme "${{ steps.detect.outputs.scheme }}" \
             -configuration Release \
-            -archivePath ./build/NSMobile.xcarchive \
+            -archivePath ./build/Archive.xcarchive \
+            -destination "generic/platform=iOS" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
             -allowProvisioningUpdates \
-            -authenticationKeyID "${{ secrets.APP_STORE_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.APP_STORE_ISSUER_ID }}" \
-            -authenticationKeyPath "/Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_KEY_ID }}.p8" \
+            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8" \
             archive
 
-      # 7. Exporter l'archive vers un fichier .ipa
-      - name: Export .IPA File
+      - name: Export IPA
+        working-directory: ${{ env.MOBILE_DIR }}/ios
         run: |
-          cd mobile/ios
-
-          # Création du fichier de configuration d'exportation
-          cat <<EOF > ExportOptions.plist
+          cat > ExportOptions.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
-              <key>method</key>
-              <string>development</string>
-              <key>signingStyle</key>
-              <string>automatic</string>
-              <key>teamID</key>
-              <string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>method</key>
+            <string>development</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>compileBitcode</key>
+            <false/>
           </dict>
           </plist>
           EOF
 
-          # Commande d'exportation de l'IPA
           xcodebuild -exportArchive \
-            -archivePath ./build/NSMobile.xcarchive \
+            -archivePath ./build/Archive.xcarchive \
             -exportPath ./build/output \
             -exportOptionsPlist ExportOptions.plist \
             -allowProvisioningUpdates \
-            -authenticationKeyID "${{ secrets.APP_STORE_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.APP_STORE_ISSUER_ID }}" \
-            -authenticationKeyPath "/Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_KEY_ID }}.p8"
+            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
 
-      # 8. Mettre à disposition le fichier .ipa en téléchargement sur GitHub
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NSMobile-Release-IPA
-          path: mobile/ios/build/output/*.ipa
+          name: NSMobile-iOS-${{ github.sha }}
+          path: ${{ env.MOBILE_DIR }}/ios/build/output/*.ipa
+          retention-days: 30
