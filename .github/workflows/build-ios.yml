@@ -75,44 +75,48 @@ jobs:
           xcodebuild -workspace "${{ steps.detect.outputs.workspace }}" \
             -scheme "${{ steps.detect.outputs.scheme }}" \
             -configuration Release \
-            -archivePath ./build/Archive.xcarchive \
+            -archivePath "$PWD/build/Archive.xcarchive" \
             -destination "generic/platform=iOS" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            CODE_SIGN_STYLE=Automatic \
             -allowProvisioningUpdates \
             -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
             -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8" \
-            archive
+            archive 2>&1 | tail -30
 
       - name: Export IPA
         working-directory: ${{ env.MOBILE_DIR }}/ios
         run: |
-          printf '%s\n' \
-            '<?xml version="1.0" encoding="UTF-8"?>' \
-            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
-            '<plist version="1.0">' \
-            '<dict>' \
-            '<key>method</key>' \
-            '<string>app-store</string>' \
-            '<key>signingStyle</key>' \
-            '<string>automatic</string>' \
-            '<key>teamID</key>' \
-            '<string>'"${{ secrets.APPLE_TEAM_ID }}"'</string>' \
-            '<key>compileBitcode</key>' \
-            '<false/>' \
-            '</dict>' \
-            '</plist>' > ExportOptions.plist
+          PLIST="$PWD/ExportOptions.plist"
+          echo '<?xml version="1.0" encoding="UTF-8"?>' > "$PLIST"
+          echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> "$PLIST"
+          echo '<plist version="1.0">' >> "$PLIST"
+          echo '<dict>' >> "$PLIST"
+          echo '  <key>method</key>' >> "$PLIST"
+          echo '  <string>app-store</string>' >> "$PLIST"
+          echo '  <key>signingStyle</key>' >> "$PLIST"
+          echo '  <string>automatic</string>' >> "$PLIST"
+          echo '  <key>teamID</key>' >> "$PLIST"
+          echo "  <string>${{ secrets.APPLE_TEAM_ID }}</string>" >> "$PLIST"
+          echo '  <key>compileBitcode</key>' >> "$PLIST"
+          echo '  <false/>' >> "$PLIST"
+          echo '</dict>' >> "$PLIST"
+          echo '</plist>' >> "$PLIST"
 
-          cat ExportOptions.plist
+          echo "=== Contenu du plist ==="
+          cat "$PLIST"
+          echo "=== Validation plist ==="
+          plutil -lint "$PLIST"
 
           xcodebuild -exportArchive \
-            -archivePath ./build/Archive.xcarchive \
-            -exportPath ./build/output \
-            -exportOptionsPlist ExportOptions.plist \
+            -archivePath "$PWD/build/Archive.xcarchive" \
+            -exportPath "$PWD/build/output" \
+            -exportOptionsPlist "$PLIST" \
             -allowProvisioningUpdates \
             -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
             -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
-            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8" 2>&1 | tail -30
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
