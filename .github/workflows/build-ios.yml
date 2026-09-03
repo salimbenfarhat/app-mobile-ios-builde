@@ -87,23 +87,24 @@ jobs:
       - name: Export IPA
         working-directory: ${{ env.MOBILE_DIR }}/ios
         run: |
-          cat > ExportOptions.plist <<EOF
+          cat > ExportOptions.plist <<'PLISTEOF'
           <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key>
-            <string>development</string>
+            <string>app-store</string>
             <key>signingStyle</key>
             <string>automatic</string>
             <key>teamID</key>
-            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <string>TEAM_ID_PLACEHOLDER</string>
             <key>compileBitcode</key>
             <false/>
           </dict>
           </plist>
-          EOF
+          PLISTEOF
+
+          sed -i '' "s/TEAM_ID_PLACEHOLDER/${{ secrets.APPLE_TEAM_ID }}/g" ExportOptions.plist
 
           xcodebuild -exportArchive \
             -archivePath ./build/Archive.xcarchive \
