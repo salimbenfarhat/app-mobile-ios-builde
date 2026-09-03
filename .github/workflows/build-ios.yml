@@ -15,9 +15,9 @@ jobs:
           token: ${{ secrets.PAT_PRIVATE_REPO }}
           ref: main
 
-      - name: Activer Xcode 16.1
+      - name: Activer Xcode 16.0
         run: |
-          sudo xcode-select -s /Applications/Xcode_16.1.app || sudo xcode-select -s /Applications/Xcode_16.app || true
+          sudo xcode-select -s /Applications/Xcode_16.0.app || sudo xcode-select -s /Applications/Xcode_16.app || sudo xcode-select -s /Applications/Xcode_16.1.app || true
           xcodebuild -version
 
       - name: Installation Node.js
@@ -105,7 +105,7 @@ jobs:
             --export_method app-store \
             --output_directory ./build/output \
             --output_name app-release.ipa \
-            --xcargs "CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }}"
+            --sdk iphoneos
 
       - name: Sauvegarder le fichier IPA dans les Artifacts
         uses: actions/upload-artifact@v4
