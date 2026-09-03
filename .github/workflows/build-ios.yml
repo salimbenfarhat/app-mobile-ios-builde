@@ -83,7 +83,7 @@ jobs:
 
           security import "$P12_PATH" \
             -k "$KEYCHAIN_PATH" \
-            -P "${{ secrets.DISTRIBUTION_P12_PASSWORD }}" \
+            -P "" \
             -T /usr/bin/codesign \
             -T /usr/bin/security
 
