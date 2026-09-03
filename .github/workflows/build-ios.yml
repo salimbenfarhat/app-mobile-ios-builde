@@ -67,8 +67,6 @@ jobs:
             -configuration Release \
             -archivePath ./build/NSMobile.xcarchive \
             DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
-            CODE_SIGN_STYLE="Automatic" \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
             archive \
             -allowProvisioningUpdates \
             -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
