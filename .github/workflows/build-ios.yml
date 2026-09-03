@@ -53,25 +53,6 @@ jobs:
           cd mobile
           npx expo prebuild --platform ios
 
-      - name: Configurer la signature Manuel/Distribution avec Ruby xcodeproj
-        env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          ruby -e '
-            require "xcodeproj"
-            project = Xcodeproj::Project.open("mobile/ios/NSMobile.xcodeproj")
-            project.targets.each do |target|
-              target.build_configurations.each do |config|
-                config.build_settings["CODE_SIGN_STYLE"] = "Manual"
-                config.build_settings["DEVELOPMENT_TEAM"] = ENV["APPLE_TEAM_ID"]
-                config.build_settings["CODE_SIGN_IDENTITY"] = "Apple Distribution"
-                config.build_settings["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] = "Apple Distribution"
-                config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = "com.nsmobile.app AppStore"
-              end
-            end
-            project.save
-          '
-
       - name: Install CocoaPods
         run: |
           cd mobile/ios
@@ -130,7 +111,8 @@ jobs:
             --scheme NSMobile \
             --export_method app-store \
             --output_directory ./build/output \
-            --output_name app-release.ipa
+            --output_name app-release.ipa \
+            --xcargs "-allowProvisioningUpdates -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} -authenticationKeyPath /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
 
       - name: Sauvegarder le fichier IPA dans les Artifacts
         uses: actions/upload-artifact@v4
