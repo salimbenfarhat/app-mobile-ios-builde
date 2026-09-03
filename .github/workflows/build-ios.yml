@@ -37,10 +37,26 @@ jobs:
           mkdir -p ~/.appstoreconnect/private_keys
           echo "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
 
+      - name: Injecter Apple Team ID dans app.json
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const app = JSON.parse(fs.readFileSync("mobile/app.json", "utf8"));
+            app.expo.ios.appleTeamId = process.env.APPLE_TEAM_ID;
+            fs.writeFileSync("mobile/app.json", JSON.stringify(app, null, 2));
+          '
+
       - name: Expo Prebuild (Génération du projet iOS)
         run: |
           cd mobile
           npx expo prebuild --platform ios
+
+      - name: Configurer la signature Distribution dans Xcode
+        run: |
+          sed -i '' 's/iPhone Developer/Apple Distribution/g' mobile/ios/NSMobile.xcodeproj/project.pbxproj || true
+          sed -i '' 's/Apple Development/Apple Distribution/g' mobile/ios/NSMobile.xcodeproj/project.pbxproj || true
 
       - name: Install CocoaPods
         run: |
@@ -52,11 +68,9 @@ jobs:
           cd mobile/ios
           xcodebuild -workspace NSMobile.xcworkspace \
             -scheme NSMobile \
-            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -configuration Release \
             -archivePath ./build/NSMobile.xcarchive \
-            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
             archive \
             -allowProvisioningUpdates \
             -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
