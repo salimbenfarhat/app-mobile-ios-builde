@@ -32,11 +32,6 @@ jobs:
           cd mobile
           npm ci
 
-      - name: Installer la Clé API Apple App Store Connect
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
-
       - name: Injecter Apple Team ID dans app.json
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -60,9 +55,13 @@ jobs:
 
       - name: Créer le Profil de Distribution App Store avec Fastlane Sigh
         env:
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY_KEY_FILEPATH: /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          APP_STORE_CONNECT_API_KEY: |
+            {
+              "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
+              "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
+              "key": "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}",
+              "is_key_content_base64": true
+            }
         run: |
           cd mobile/ios
           fastlane sigh \
@@ -71,9 +70,13 @@ jobs:
 
       - name: Compilation et Génération de l'IPA avec Fastlane Gym
         env:
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY_KEY_FILEPATH: /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+          APP_STORE_CONNECT_API_KEY: |
+            {
+              "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
+              "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
+              "key": "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}",
+              "is_key_content_base64": true
+            }
         run: |
           cd mobile/ios
           fastlane gym \
