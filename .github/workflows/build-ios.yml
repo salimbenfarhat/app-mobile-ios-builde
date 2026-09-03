@@ -72,7 +72,6 @@ jobs:
         run: |
           cd mobile/ios
           fastlane cert \
-            --force \
             --team_id ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Créer le Profil de Distribution App Store avec Fastlane Sigh
@@ -89,7 +88,6 @@ jobs:
         run: |
           cd mobile/ios
           fastlane sigh \
-            --force \
             --app_identifier "com.nsmobile.app" \
             --team_id ${{ secrets.APPLE_TEAM_ID }}
 
@@ -111,8 +109,7 @@ jobs:
             --scheme NSMobile \
             --export_method app-store \
             --output_directory ./build/output \
-            --output_name app-release.ipa \
-            --xcargs "-allowProvisioningUpdates -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} -authenticationKeyPath /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
+            --output_name app-release.ipa
 
       - name: Sauvegarder le fichier IPA dans les Artifacts
         uses: actions/upload-artifact@v4
