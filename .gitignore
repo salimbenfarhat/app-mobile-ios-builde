@@ -1,0 +1,7 @@
+certificates/*.p12
+certificates/*.pem
+certificates/*.cer
+certificates/*.csr
+certificates/*.inf
+certificates/p12_base64.txt
+certificates/*.py
