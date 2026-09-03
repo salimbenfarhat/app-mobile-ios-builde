@@ -32,6 +32,11 @@ jobs:
           cd mobile
           npm ci
 
+      - name: Installer la Clé API Apple App Store Connect
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+
       - name: Injecter Apple Team ID dans app.json
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -104,7 +109,8 @@ jobs:
             --scheme NSMobile \
             --export_method app-store \
             --output_directory ./build/output \
-            --output_name app-release.ipa
+            --output_name app-release.ipa \
+            --xcargs "-allowProvisioningUpdates -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} -authenticationKeyPath /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8"
 
       - name: Sauvegarder le fichier IPA dans les Artifacts
         uses: actions/upload-artifact@v4
