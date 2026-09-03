@@ -59,16 +59,21 @@ jobs:
           pod install
 
       - name: Créer le Profil de Distribution App Store avec Fastlane Sigh
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_KEY_FILEPATH: /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
         run: |
           cd mobile/ios
           fastlane sigh \
             --app_identifier "com.nsmobile.app" \
-            --api_key_path ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8 \
-            --key_id ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
-            --issuer_id ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
             --team_id ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Compilation et Génération de l'IPA avec Fastlane Gym
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_KEY_FILEPATH: /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
         run: |
           cd mobile/ios
           fastlane gym \
