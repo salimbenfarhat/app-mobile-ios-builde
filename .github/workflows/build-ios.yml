@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-15 # 👈 Passé sur macos-15 (avec Xcode 16.1)
+    runs-on: macos-15
 
     steps:
       - name: Checkout du code privé
@@ -55,6 +55,7 @@ jobs:
             -sdk iphoneos \
             -configuration Release \
             -archivePath ./build/NSMobile.xcarchive \
+            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
             archive \
             -allowProvisioningUpdates \
             -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
