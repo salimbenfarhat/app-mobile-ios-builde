@@ -45,7 +45,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           cd mobile
-          eas init --non-interactive || true
+          eas init --account salimbenfarhat --non-interactive
 
       - name: Build de l'IPA (Compilation locale sur le runner macOS)
         env:
