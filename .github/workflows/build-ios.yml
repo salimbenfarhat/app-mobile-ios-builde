@@ -53,18 +53,23 @@ jobs:
           cd mobile
           npx expo prebuild --platform ios
 
-      - name: Configurer la signature Distribution dans le projet Xcode
+      - name: Configurer la signature Manuel/Distribution avec Ruby xcodeproj
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          node -e '
-            const fs = require("fs");
-            const file = "mobile/ios/NSMobile.xcodeproj/project.pbxproj";
-            let c = fs.readFileSync(file, "utf8");
-            c = c.replace(/CODE_SIGN_IDENTITY = "iPhone Developer";/g, "CODE_SIGN_IDENTITY = \"Apple Distribution\";");
-            c = c.replace(/CODE_SIGN_IDENTITY = "Apple Development";/g, "CODE_SIGN_IDENTITY = \"Apple Distribution\";");
-            c = c.replace(/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "iPhone Developer";/g, "\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\" = \"Apple Distribution\";");
-            c = c.replace(/CODE_SIGN_STYLE = Automatic;/g, "CODE_SIGN_STYLE = Manual;");
-            c = c.replace(/PROVISIONING_PROFILE_SPECIFIER = "";/g, "PROVISIONING_PROFILE_SPECIFIER = \"com.nsmobile.app AppStore\";");
-            fs.writeFileSync(file, c);
+          ruby -e '
+            require "xcodeproj"
+            project = Xcodeproj::Project.open("mobile/ios/NSMobile.xcodeproj")
+            project.targets.each do |target|
+              target.build_configurations.each do |config|
+                config.build_settings["CODE_SIGN_STYLE"] = "Manual"
+                config.build_settings["DEVELOPMENT_TEAM"] = ENV["APPLE_TEAM_ID"]
+                config.build_settings["CODE_SIGN_IDENTITY"] = "Apple Distribution"
+                config.build_settings["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] = "Apple Distribution"
+                config.build_settings["PROVISIONING_PROFILE_SPECIFIER"] = "com.nsmobile.app AppStore"
+              end
+            end
+            project.save
           '
 
       - name: Install CocoaPods
@@ -86,6 +91,7 @@ jobs:
         run: |
           cd mobile/ios
           fastlane cert \
+            --force \
             --team_id ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Créer le Profil de Distribution App Store avec Fastlane Sigh
@@ -102,6 +108,7 @@ jobs:
         run: |
           cd mobile/ios
           fastlane sigh \
+            --force \
             --app_identifier "com.nsmobile.app" \
             --team_id ${{ secrets.APPLE_TEAM_ID }}
 
