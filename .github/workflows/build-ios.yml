@@ -32,20 +32,46 @@ jobs:
         working-directory: ${{ env.MOBILE_DIR }}
         run: npm ci || npm install
 
+      - name: Debug - Show project structure
+        working-directory: ${{ env.MOBILE_DIR }}
+        run: |
+          echo "=== Fichiers dans mobile ==="
+          ls -la
+          echo ""
+          echo "=== app.json ou app.config.js ? ==="
+          ls app.json app.config.js app.config.ts 2>/dev/null || echo "Aucun fichier de config Expo trouvé"
+          echo ""
+          echo "=== Expo dans les deps ? ==="
+          cat package.json | grep -i expo || echo "Expo non trouvé dans package.json"
+
       - name: Generate iOS project with Expo Prebuild
         working-directory: ${{ env.MOBILE_DIR }}
-        run: npx expo prebuild --platform ios --clean
+        run: |
+          npx expo prebuild --platform ios --no-install 2>&1 || true
+          echo "=== Contenu du dossier ios après prebuild ==="
+          ls -la ios/ 2>/dev/null || echo "Dossier ios non créé"
 
       - name: Detect Xcode workspace & scheme
         id: detect
         working-directory: ${{ env.MOBILE_DIR }}/ios
         run: |
+          echo "=== Fichiers dans ios ==="
+          ls -la
+
           WORKSPACE=$(ls -d *.xcworkspace 2>/dev/null | head -1)
+
+          if [ -z "$WORKSPACE" ]; then
+            echo "::error::Aucun .xcworkspace trouvé dans $PWD"
+            echo "Contenu complet :"
+            find . -name "*.xcworkspace" -o -name "*.xcodeproj" 2>/dev/null
+            exit 1
+          fi
+
           SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" 2>/dev/null \
             | sed -n '/Schemes:/,/Buildable/p' | sed -n '2p' | xargs)
 
-          if [ -z "$WORKSPACE" ] || [ -z "$SCHEME" ]; then
-            echo "::error::Workspace ou scheme introuvable dans $PWD"
+          if [ -z "$SCHEME" ]; then
+            echo "::error::Aucun scheme trouvé dans $WORKSPACE"
             exit 1
           fi
 
