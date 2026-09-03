@@ -10,7 +10,7 @@ env:
   RN_REPO: https://salimbenfarhat:${{ secrets.PAT_PRIVATE_REPO }}@github.com/salimbenfarhat/nsmobile-delivery-app.git
   # Dossier du projet mobile dans le repo cloné
   MOBILE_DIR: nsmobile-delivery-app/mobile
-  # Scheme applicatif (ne pas auto-détecter un scheme de Pod Expo)
+  # Scheme applicatif
   IOS_SCHEME: NSMobile
 
 jobs:
@@ -89,6 +89,8 @@ jobs:
         run: |
           set -o pipefail
 
+          # Chaque run GitHub reçoit un numéro de build iOS unique afin que
+          # TestFlight accepte les uploads successifs de la même version.
           xcodebuild \
             -workspace "${{ steps.detect.outputs.workspace }}" \
             -scheme "$IOS_SCHEME" \
@@ -97,6 +99,7 @@ jobs:
             -destination "generic/platform=iOS" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
             CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             -allowProvisioningUpdates \
             -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
             -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
@@ -145,3 +148,25 @@ jobs:
           name: NSMobile-iOS-${{ github.sha }}
           path: ${{ env.MOBILE_DIR }}/ios/build/output/*.ipa
           retention-days: 30
+
+      - name: Upload to TestFlight
+        working-directory: ${{ env.MOBILE_DIR }}/ios
+        run: |
+          set -o pipefail
+
+          IPA_PATH=$(find "$PWD/build/output" -maxdepth 1 -name "*.ipa" -type f | head -1)
+
+          if [ -z "$IPA_PATH" ]; then
+            echo "::error::Aucun fichier IPA trouvé pour l'upload TestFlight"
+            exit 1
+          fi
+
+          echo "Uploading $(basename "$IPA_PATH") to App Store Connect / TestFlight..."
+
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --apiKey "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+
+          echo "IPA envoyée à App Store Connect. Apple va maintenant traiter le build pour TestFlight."
