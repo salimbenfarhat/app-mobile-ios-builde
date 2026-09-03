@@ -58,62 +58,50 @@ jobs:
           cd mobile/ios
           pod install
 
-      - name: Créer le Certificat de Distribution avec Fastlane Cert
-        env:
-          SPACESHIP_CONNECT_API_IN_HOUSE: "false"
-          APP_STORE_CONNECT_API_KEY: |
-            {
-              "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
-              "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
-              "key": "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}",
-              "is_key_content_base64": true,
-              "in_house": false
-            }
+      - name: Compilation et Archivage avec Xcode (Direct)
         run: |
           cd mobile/ios
-          fastlane cert \
-            --team_id ${{ secrets.APPLE_TEAM_ID }}
+          xcodebuild -workspace NSMobile.xcworkspace \
+            -scheme NSMobile \
+            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            -archivePath ./build/NSMobile.xcarchive \
+            archive \
+            -allowProvisioningUpdates \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+            -authenticationKeyPath /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
 
-      - name: Créer le Profil de Distribution App Store avec Fastlane Sigh
-        env:
-          SPACESHIP_CONNECT_API_IN_HOUSE: "false"
-          APP_STORE_CONNECT_API_KEY: |
-            {
-              "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
-              "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
-              "key": "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}",
-              "is_key_content_base64": true,
-              "in_house": false
-            }
+      - name: Exportation du fichier IPA
         run: |
           cd mobile/ios
-          fastlane sigh \
-            --app_identifier "com.nsmobile.app" \
-            --team_id ${{ secrets.APPLE_TEAM_ID }}
+          cat <<EOF > ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+              <key>teamID</key>
+              <string>${{ secrets.APPLE_TEAM_ID }}</string>
+          </dict>
+          </plist>
+          EOF
 
-      - name: Compilation et Génération de l'IPA avec Fastlane Gym
-        env:
-          SPACESHIP_CONNECT_API_IN_HOUSE: "false"
-          APP_STORE_CONNECT_API_KEY: |
-            {
-              "key_id": "${{ secrets.APP_STORE_CONNECT_KEY_ID }}",
-              "issuer_id": "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}",
-              "key": "${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}",
-              "is_key_content_base64": true,
-              "in_house": false
-            }
-        run: |
-          cd mobile/ios
-          fastlane gym \
-            --workspace NSMobile.xcworkspace \
-            --scheme NSMobile \
-            --export_method app-store \
-            --output_directory ./build/output \
-            --output_name app-release.ipa
+          xcodebuild -exportArchive \
+            -archivePath ./build/NSMobile.xcarchive \
+            -exportPath ./build/output \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+            -authenticationKeyPath /Users/runner/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
 
       - name: Sauvegarder le fichier IPA dans les Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: app-release-ios
-          path: mobile/ios/build/output/app-release.ipa
+          path: mobile/ios/build/output/*.ipa
           retention-days: 1
