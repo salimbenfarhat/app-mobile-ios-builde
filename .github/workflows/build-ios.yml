@@ -15,10 +15,27 @@ env:
 
 jobs:
   build-ios:
-    runs-on: macos-15
+    # Apple exige désormais iOS 26 SDK+ pour les uploads App Store Connect.
+    # macos-26 utilise Xcode 26 par défaut sur les runners GitHub hébergés.
+    runs-on: macos-26
     steps:
       - name: Checkout workflow repo
         uses: actions/checkout@v4
+
+      - name: Verify Xcode 26
+        run: |
+          echo "=== Xcode utilisé ==="
+          xcodebuild -version
+          echo "=== SDK iPhoneOS ==="
+          xcrun --sdk iphoneos --show-sdk-version
+
+          XCODE_MAJOR=$(xcodebuild -version | awk '/Xcode/{split($2,v,"."); print v[1]}')
+          SDK_MAJOR=$(xcrun --sdk iphoneos --show-sdk-version | cut -d. -f1)
+
+          if [ "$XCODE_MAJOR" -lt 26 ] || [ "$SDK_MAJOR" -lt 26 ]; then
+            echo "::error::Xcode 26 / iOS 26 SDK minimum requis pour App Store Connect"
+            exit 1
+          fi
 
       - name: Clone private React Native repo
         run: git clone --depth 1 "$RN_REPO"
