@@ -27,9 +27,6 @@ jobs:
           cd mobile
           npm ci
 
-      - name: Configurer Expo & EAS CLI
-        run: npm install -g expo-cli eas-cli
-
       - name: Installer la Clé API Apple App Store Connect
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
@@ -40,26 +37,55 @@ jobs:
           cd mobile
           npx expo prebuild --platform ios
 
-      - name: Initialiser le projet EAS
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Install CocoaPods
         run: |
-          cd mobile
-          eas init --account salimbenfarhat --non-interactive
+          cd mobile/ios
+          pod install
 
-      - name: Build de l'IPA (Compilation locale sur le runner macOS)
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EXPO_ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          EXPO_ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          EXPO_ASC_KEY_P8: ${{ secrets.APP_STORE_CONNECT_P8_BASE64 }}
+      - name: Compilation et Archivage avec Xcode
         run: |
-          cd mobile
-          eas build --platform ios --local --non-interactive --output=./app-release.ipa
+          cd mobile/ios
+          xcodebuild -workspace NSMobile.xcworkspace \
+            -scheme NSMobile \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath ./build/NSMobile.xcarchive \
+            archive \
+            -allowProvisioningUpdates \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
+
+      - name: Exportation du fichier IPA
+        run: |
+          cd mobile/ios
+          cat <<EOF > ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+              <key>compileBitcode</key>
+              <false/>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+            -archivePath ./build/NSMobile.xcarchive \
+            -exportPath ./build/output \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8
 
       - name: Sauvegarder le fichier IPA dans les Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: app-release-ios
-          path: mobile/app-release.ipa
+          path: mobile/ios/build/output/*.ipa
           retention-days: 1
